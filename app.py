@@ -10,7 +10,7 @@ def hello():
     return jsonify(
         {
             "message": "Hello from CI/CD demo!",
-            "version": os.environ.get("APP_VERSION", "v1"),
+            "version": os.environ.get("APP_VERSION", "v2"),
         }
     )
 
