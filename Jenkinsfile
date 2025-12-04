@@ -1,56 +1,71 @@
 pipeline {
-  agent any
+agent any
 
-  environment {
+```
+environment {
     IMAGE_NAME = "devops-ci-demo-app"
     CONTAINER_NAME = "devops-ci-demo-container"
     APP_PORT = "5000"
-  }
-
-  stage('Checkout') {
-  steps {
-    cleanWs()
-    checkout scm
-  }
 }
 
-stage('Build Docker Image') {
-  steps {
-    script {
-      sh '''
-        GIT_COMMIT=$(git rev-parse --short HEAD)
-        docker build --no-cache -t ${IMAGE_NAME}:${GIT_COMMIT} -t ${IMAGE_NAME}:latest .
-      '''
+stages {
+
+    stage('Checkout') {
+        steps {
+            checkout scm
+        }
     }
-  }
-}
 
-stage('Stop Old Container') {
-  steps {
-    script {
-      sh '''
-        docker stop ${CONTAINER_NAME} || true
-        docker rm ${CONTAINER_NAME} || true
-      '''
+    stage('Build Docker Image') {
+        steps {
+            script {
+                sh "docker build -t ${IMAGE_NAME}:latest ."
+            }
+        }
     }
-  }
-}
 
-stage('Run Container') {
-  steps {
-    script {
-      sh "docker run -d --name ${CONTAINER_NAME} -p 80:${APP_PORT} ${IMAGE_NAME}:${GIT_COMMIT}"
+    stage('Stop Old Container') {
+        steps {
+            script {
+                sh '''
+                    if [ "$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
+                      docker stop ${CONTAINER_NAME}
+                    fi
+                    if [ "$(docker ps -a -q -f name=${CONTAINER_NAME})" ]; then
+                      docker rm ${CONTAINER_NAME}
+                    fi
+                '''
+            }
+        }
     }
-  }
-}
+
+    stage('Run Container') {
+        steps {
+            script {
+                sh "docker run -d --name ${CONTAINER_NAME} -p 80:${APP_PORT} ${IMAGE_NAME}:latest"
+            }
+        }
+    }
 
     stage('Smoke Test') {
-      steps { script { sh 'sleep 3'; sh 'curl -f http://localhost || (echo "Smoke test failed" && exit 1)' } }
+        steps {
+            script {
+                sh 'sleep 3'
+                sh 'curl -f http://localhost || (echo "Smoke test failed" && exit 1)'
+            }
+        }
     }
-  }
 
-  post {
-    success { echo "Build & deploy succeeded" }
-    failure { echo "Build failed" }
-  }
+}
+
+post {
+    success {
+        echo "Build & deploy succeeded"
+    }
+    failure {
+        echo "Build failed"
+    }
+}
+```
+
 }
